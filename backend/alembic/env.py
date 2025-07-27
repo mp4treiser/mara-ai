@@ -8,6 +8,13 @@ from alembic import context
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+from src.core.config import settings
+section = config.config_ini_section
+config.set_section_option(section, "host", settings.db.host)
+config.set_section_option(section, "port", str(settings.db.port))
+config.set_section_option(section, "name", settings.db.name)
+config.set_section_option(section, "user", settings.db.user)
+config.set_section_option(section, "password", settings.db.password)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
@@ -18,7 +25,10 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-target_metadata = None
+from src.core.orm.base import Base
+from src.account.models import User
+
+target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
