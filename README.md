@@ -79,13 +79,6 @@ mara-ai — это платформа для мониторинга и авто�
 
 ---
 
-## Contributing / Вклад
-
-We welcome contributions! See [docs/CONTRIBUTING.md] for details.  
-Будем рады любым PR и предложениям! Подробнее — в [docs/CONTRIBUTING.md].
-
----
-
 ## License / Лицензия
 
 MIT License

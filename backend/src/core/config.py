@@ -16,6 +16,11 @@ class DBSettings(BaseSettings):
 
 class Settings():
     db: DBSettings = DBSettings()
+    
+    # JWT Settings
+    SECRET_KEY: str = os.environ.get("SECRET_KEY", "your-secret-key-here")
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
 
 settings = Settings()

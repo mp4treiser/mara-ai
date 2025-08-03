@@ -24,6 +24,13 @@ class UserRepository():
         await self.session.refresh(user)
         return user
 
+    async def create_from_dict(self, user_data: dict):
+        user = User(**user_data)
+        self.session.add(user)
+        await self.session.commit()
+        await self.session.refresh(user)
+        return user
+
     async def update(self, user_id: int, user_schema: UpdateUserSchema):
         user_dict = user_schema.dict(exclude_unset=True)
         query = Update(User).where(User.id == user_id).values(**user_dict)
@@ -31,6 +38,11 @@ class UserRepository():
         await self.session.commit()
         updated_user = await self.session.get(User, user_id)
         return updated_user
+
+    async def update_password(self, user_id: int, hashed_password: str):
+        query = Update(User).where(User.id == user_id).values(password=hashed_password)
+        await self.session.execute(query)
+        await self.session.commit()
 
     async def delete(self, user_id: int):
         query = Delete(User).where(User.id == user_id)
@@ -44,13 +56,13 @@ class UserRepository():
         user = await self.session.get(User, user_id)
         return user
 
+    async def get_by_email(self, email: str):
+        query = Select(User).where(User.email == email)
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
+
     async def get_all(self):
         query = Select(User)
         result = await self.session.execute(query)
         users = result.scalars().all()
         return users
-
-    async def check_email(self, email):
-        query = Select(User).where(User.email == email)
-        result = await self.session.execute(query)
-        return result.scalar_one_or_none()
