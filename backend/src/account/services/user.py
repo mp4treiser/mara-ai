@@ -5,16 +5,30 @@ from starlette import status
 
 from src.account.repositories.user import UserRepository
 from src.account.schemas import CreateUserSchema, UpdateUserSchema
+from src.core.auth import AuthManager
 
 
 class UserService:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.repository = UserRepository(session=session)
+        self.auth_manager = AuthManager()
 
     async def create(self, user_schema: CreateUserSchema):
         await self._validate_email_unique(email=user_schema.email)
-        return await self.repository.create(user_schema=user_schema)
+
+        hashed_password = self.auth_manager.hash_password(user_schema.password)
+        
+        user_data = {
+            "email": user_schema.email,
+            "password": hashed_password,
+            "company": user_schema.company,
+            "first_name": user_schema.first_name,
+            "last_name": user_schema.last_name,
+            "is_active": True
+        }
+        
+        return await self.repository.create_from_dict(user_data)
 
     async def get_all(self):
         return await self.repository.get_all()
@@ -35,7 +49,7 @@ class UserService:
             )
 
     async def _validate_email_unique(self, email: str):
-        if await self.repository.check_email(email=email) is not None:
+        if await self.repository.get_by_email(email=email) is not None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered"
