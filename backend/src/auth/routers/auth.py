@@ -10,6 +10,9 @@ router = APIRouter(
     tags=["Authentication"]
 )
 
+@router.get("/health")
+async def auth_health_handler():
+    return {"status": "success"}
 
 @router.post("/register", response_model=UserResponseSchema, status_code=status.HTTP_201_CREATED)
 async def register_handler(
@@ -27,8 +30,3 @@ async def login_handler(
 ):
     auth_service = AuthService(session=session)
     return await auth_service.login(login_schema=payload)
-
-
-@router.get("/health")
-async def auth_health_handler():
-    return {"status": "auth module is working"}

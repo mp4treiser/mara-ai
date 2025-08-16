@@ -1,0 +1,44 @@
+services:
+  # Redis - брокер сообщений для Celery
+  redis:
+    image: redis:7-alpine
+    container_name: mara-ai-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./backend/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - mara-network
+    environment:
+      - REDIS_PASSWORD=  # Можно установить пароль для продакшна
+
+  # Redis Commander - веб-интерфейс для управления Redis
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: mara-ai-redis-commander
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - mara-network
+
+volumes:
+  redis_data:
+
+networks:
+  mara-network:
+    external: true
+    name: mara-ai_mara-network

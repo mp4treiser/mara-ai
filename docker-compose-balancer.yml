@@ -1,0 +1,282 @@
+# version: '3.8'  # Устарело в новых версиях Docker Compose
+
+services:
+  # База данных
+  postgres:
+    image: postgres:15-alpine
+    container_name: mara-ai-postgres
+    environment:
+      POSTGRES_DB: mara
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - mara-balancer-network
+
+  # Redis - брокер сообщений для Celery
+  redis:
+    image: redis:7-alpine
+    container_name: mara-ai-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./backend/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - mara-balancer-network
+      - mara-network
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: postgres-exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://postgres:postgres@postgres:5432/mara?sslmode=disable"
+      PG_EXPORTER_DISABLE_SETTINGS_METRICS: "true"
+      PG_EXPORTER_DISABLE_REPLICATION_METRICS: "true"
+      PG_EXPORTER_DISABLE_DATABASE_METRICS: "true"
+    ports:
+      - "9187:9187"
+    depends_on:
+      - postgres
+    networks:
+      - mara-balancer-network
+    restart: unless-stopped
+
+  # Бэкенд 1
+  backend1:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mara-ai-backend1
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASS=postgres
+      - DB_NAME=mara
+      - SECRET_KEY=xQ9#mLp2$Rz4!kFn6&vYw8*Xs5%cVb3@
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - SERVER_ID=backend1  # для идентификации
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    ports:
+      - "8001:8000"
+    logging:
+      driver: json-file
+      options:
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - mara-balancer-network
+    restart: unless-stopped
+
+  # Бэкенд 2
+  backend2:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mara-ai-backend2
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASS=postgres
+      - DB_NAME=mara
+      - SECRET_KEY=xQ9#mLp2$Rz4!kFn6&vYw8*Xs5%cVb3@
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - SERVER_ID=backend2
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    ports:
+      - "8002:8000"
+    logging:
+      driver: json-file
+      options:
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.ImageFullID}}"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - mara-balancer-network
+    restart: unless-stopped
+
+  # Бэкенд 3 (более мощный)
+  backend3:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mara-ai-backend3
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASS=postgres
+      - DB_NAME=mara
+      - SECRET_KEY=xQ9#mLp2$Rz4!kFn6&vYw8*Xs5%cVb3@
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - SERVER_ID=backend3
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    ports:
+      - "8003:8000"
+    logging:
+      driver: json-file
+      options:
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - mara-balancer-network
+    restart: unless-stopped
+
+  # Резервный бэкенд
+  backend4:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mara-ai-backend4
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASS=postgres
+      - DB_NAME=mara
+      - SECRET_KEY=xQ9#mLp2$Rz4!kFn6&vYw8*Xs5%cVb3@
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - SERVER_ID=backend4
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    ports:
+      - "8004:8000"
+    logging:
+      driver: json-file
+      options:
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - mara-balancer-network
+    restart: unless-stopped
+
+  # Фронтенд с балансировщиком
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.load-balancer
+    container_name: mara-ai-frontend
+    ports:
+      - "3000:90"
+    depends_on:
+      - backend1
+      - backend2
+      - backend3
+    networks:
+      - mara-balancer-network
+    restart: unless-stopped
+
+  gitlab-server:
+    image: 'gitlab/gitlab-ce:latest'
+    container_name: gitlab-server
+    environment:
+      GITLAB_ROOT_EMAIL: "admin@BuildWithLal.com"
+      GITLAB_ROOT_PASSWORD: "Abcd@0123456789"
+      GITLAB_OMNIBUS_CONFIG: |
+        puma['worker_processes'] = 0 # disable cluster mode to avoid more memory usage
+    volumes:
+      - ./gitlab/config:/etc/gitlab
+      - ./gitlab/logs:/var/log/gitlab
+      - ./gitlab/data:/var/opt/gitlab
+    ports:
+      - '8088:80'
+    networks:
+      - mara-balancer-network
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    ports:
+      - "9080:9080"
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./promtail-config.yaml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+    privileged: true
+    networks:
+      - mara-balancer-network
+
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki-config.yaml:/etc/loki/local-config.yaml
+    networks:
+      - mara-balancer-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheusdata:/prometheus
+    networks:
+      - mara-balancer-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - grafanadata:/var/lib/grafana
+    networks:
+      - mara-balancer-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  grafanadata:
+  prometheusdata:
+
+networks:
+  mara-balancer-network:
+    driver: bridge
+  mara-network:
+    driver: bridge
+    external: false 

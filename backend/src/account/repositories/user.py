@@ -44,6 +44,12 @@ class UserRepository():
         await self.session.execute(query)
         await self.session.commit()
 
+    async def update_balance(self, user_id: int, new_balance: float):
+        """Обновление баланса пользователя"""
+        query = Update(User).where(User.id == user_id).values(balance=new_balance)
+        await self.session.execute(query)
+        await self.session.commit()
+
     async def delete(self, user_id: int):
         query = Delete(User).where(User.id == user_id)
         result = await self.session.execute(query)

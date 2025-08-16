@@ -2,7 +2,7 @@ from datetime import timedelta
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.account.repositories.user import UserRepository
+from src.account.repositories import UserRepository
 from src.auth.schemas import LoginSchema, RegisterSchema, TokenSchema, UserResponseSchema
 from src.core.config import settings
 from src.core.auth import AuthManager
@@ -18,14 +18,14 @@ class AuthService:
         if register_schema.password != register_schema.confirm_password:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Пароли не совпадают"
+                detail="The passwords do not match"
             )
 
         existing_user = await self.user_repository.get_by_email(email=register_schema.email)
         if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Пользователь с таким email уже существует"
+                detail="User with this email already exists"
             )
 
         hashed_password = self.auth_manager.hash_password(register_schema.password)
@@ -56,19 +56,19 @@ class AuthService:
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Неверный email или пароль"
+                detail="Incorrect email or password"
             )
 
         if not self.auth_manager.verify_password(login_schema.password, user.password):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Неверный email или пароль"
+                detail="Incorrect email or password"
             )
 
         if not user.is_active:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Пользователь неактивен"
+                detail="User is not active"
             )
 
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -78,6 +78,5 @@ class AuthService:
 
         return TokenSchema(
             access_token=access_token,
-            token_type="bearer",
-            expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+            token_type="bearer"
         )

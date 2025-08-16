@@ -1,0 +1,169 @@
+services:
+  # Celery Worker - основной воркер
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.celery
+    container_name: mara-ai-celery-worker
+    command: >
+      celery -A src.core.celery_app worker
+      --loglevel=info
+      --concurrency=4
+      --queues=default,wallet_monitoring,deposit_processing,maintenance
+      --hostname=worker@%h
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASS=postgres
+      - DB_NAME=mara
+    # Redis уже запущен в другом compose файле
+    # depends_on:
+    #   redis:
+    #     condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./backend/logs:/app/logs
+    networks:
+      - mara-network
+
+  # Celery Worker - специализированный для мониторинга кошельков
+  celery-wallet-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.celery
+    container_name: mara-ai-celery-wallet-worker
+    command: >
+      celery -A src.core.celery_app worker
+      --loglevel=info
+      --concurrency=2
+      --queues=wallet_monitoring
+      --hostname=wallet_worker@%h
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASS=postgres
+      - DB_NAME=mara
+    # Redis уже запущен в другом compose файле
+    # depends_on:
+    #   redis:
+    #     condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./backend/logs:/app/logs
+    networks:
+      - mara-network
+
+  # Celery Worker - специализированный для обработки депозитов
+  celery-deposit-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.celery
+    container_name: mara-ai-celery-deposit-worker
+    command: >
+      celery -A src.core.celery_app worker
+      --loglevel=info
+      --concurrency=2
+      --queues=deposit_processing
+      --hostname=deposit_worker@%h
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASS=postgres
+      - DB_NAME=mara
+    # Redis уже запущен в другом compose файле
+    # depends_on:
+    #   redis:
+    #     condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./backend/logs:/app/logs
+    networks:
+      - mara-network
+
+  # Celery Beat - планировщик задач
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.celery
+    container_name: mara-ai-celery-beat
+    command: >
+      celery -A src.core.celery_app beat
+      --loglevel=info
+      --scheduler=celery.beat:PersistentScheduler
+      --pidfile=/tmp/celerybeat.pid
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASS=postgres
+      - DB_NAME=mara
+    # Redis уже запущен в другом compose файле
+    # depends_on:
+    #   redis:
+    #     condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./backend/logs:/app/logs
+      - celery_beat_data:/tmp
+    networks:
+      - mara-network
+
+  # Flower - веб-интерфейс для мониторинга Celery
+  flower:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.flower
+    container_name: mara-ai-flower
+    ports:
+      - "5555:5555"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - FLOWER_PORT=5555
+      - FLOWER_HOST=0.0.0.0
+    # Redis уже запущен в другом compose файле
+    # depends_on:
+    #   redis:
+    #     condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - mara-network
+
+volumes:
+  celery_beat_data:
+
+networks:
+  mara-network:
+    external: true
+    name: mara-ai_mara-network
