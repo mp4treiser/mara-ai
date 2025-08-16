@@ -26,7 +26,7 @@ if config.config_file_name is not None:
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 from src.core.orm.base import Base
-from src.account.models import User
+from src.account.models import User, Plan, Subscription, Wallet, WalletDeposit
 
 target_metadata = Base.metadata
 

@@ -18,7 +18,6 @@ class RegisterSchema(BaseModel):
 class TokenSchema(BaseModel):
     access_token: str
     token_type: str = "bearer"
-    expires_in: int
 
 
 class UserResponseSchema(BaseModel):

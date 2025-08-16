@@ -1,0 +1,39 @@
+FROM python:3.11-slim
+
+# Устанавливаем системные зависимости
+RUN apt-get update && apt-get install -y \
+    gcc \
+    libpq-dev \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Устанавливаем рабочую директорию
+WORKDIR /app
+
+# Копируем файлы зависимостей
+COPY pyproject.toml poetry.lock ./
+
+# Устанавливаем Poetry
+RUN pip install poetry
+
+# Настраиваем Poetry для работы в контейнере
+RUN poetry config virtualenvs.create false
+
+# Устанавливаем зависимости
+RUN poetry install --no-root
+
+# Копируем код приложения
+COPY . .
+
+# Создаем пользователя для безопасности
+RUN useradd -m -u 1000 flower && \
+    chown -R flower:flower /app
+USER flower
+
+# Переменные окружения по умолчанию
+ENV PYTHONPATH=/app
+ENV FLOWER_PORT=5555
+ENV FLOWER_HOST=0.0.0.0
+
+# Команда по умолчанию
+CMD ["celery", "-A", "src.core.celery_app", "flower", "--port=5555", "--host=0.0.0.0"]

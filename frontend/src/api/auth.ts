@@ -28,8 +28,8 @@ export interface RegisterRequest {
   last_name: string;
 }
 
-// Базовый URL API
-const API_BASE_URL = 'http://localhost:8000/api/v1';
+// Базовый URL API - используем относительные пути для nginx прокси
+const API_BASE_URL = '/api/v1';
 
 // Функция для выполнения HTTP запросов
 async function apiRequest<T>(
@@ -85,7 +85,7 @@ export const authAPI = {
 
   // Получение профиля пользователя
   async getProfile(): Promise<UserProfile> {
-    return apiRequest<UserProfile>('/users/me/profile');
+    return apiRequest<UserProfile>('/user/me/profile');
   },
 
   // Выход из системы

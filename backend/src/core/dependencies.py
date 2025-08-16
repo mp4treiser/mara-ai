@@ -18,33 +18,31 @@ async def get_current_user(
 
     try:
         payload = auth_manager.decode_token(credentials.credentials)
-        user_id: str = payload.get("sub")
-        if user_id is None:
+        user_id = payload.get("sub")
+        if not user_id:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Неверный токен аутентификации"
+                detail="Token is not valid"
             )
-    except HTTPException:
-        raise
-    except Exception:
+    except Exception or HTTPException:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Неверный токен аутентификации"
+            detail="Token is not valid"
         )
 
     user_repository = UserRepository(session=session)
     user = await user_repository.get_by_id(int(user_id))
 
-    if user is None:
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Пользователь не найден"
+            detail="Token is not valid"
         )
 
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Пользователь неактивен"
+            detail="Token is not valid"
         )
 
     return user
@@ -56,7 +54,7 @@ async def get_current_active_user(
     if not current_user.is_active:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Пользователь неактивен"
+            detail="User is not active"
         )
     return current_user
 
@@ -67,6 +65,6 @@ async def get_current_superuser(
     if not current_user.is_superuser:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Недостаточно прав"
+            detail="Access denied"
         )
     return current_user

@@ -1,0 +1,40 @@
+# Используем официальный Python образ
+FROM python:3.11-slim
+
+# Устанавливаем системные зависимости
+RUN apt-get update && apt-get install -y \
+    gcc \
+    libpq-dev \
+    postgresql-client \
+    netcat-traditional \
+    && rm -rf /var/lib/apt/lists/*
+
+# Устанавливаем рабочую директорию
+WORKDIR /app
+
+# Копируем файлы зависимостей
+COPY pyproject.toml poetry.lock ./
+
+# Устанавливаем Poetry
+RUN pip install poetry
+
+# Настраиваем Poetry для работы в контейнере
+RUN poetry config virtualenvs.create false
+
+# Устанавливаем зависимости
+RUN poetry install --no-root
+
+# Копируем исходный код
+COPY . .
+
+# Создаем пользователя для безопасности
+RUN useradd -m -u 1000 celery && \
+    chown -R celery:celery /app
+USER celery
+
+# Переменные окружения по умолчанию
+ENV PYTHONPATH=/app
+ENV C_FORCE_ROOT=1
+
+# Команда по умолчанию (будет переопределена в docker-compose)
+CMD ["celery", "-A", "src.core.celery_app", "worker", "--loglevel=info"]

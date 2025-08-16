@@ -1,0 +1,272 @@
+version: '3.8'
+
+services:
+  # База данных
+  postgres:
+    image: postgres:15-alpine
+    container_name: mara-ai-postgres
+    environment:
+      POSTGRES_DB: mara
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d mara"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - mara-network
+    restart: unless-stopped
+
+  # Redis - брокер сообщений для Celery
+  redis:
+    image: redis:7-alpine
+    container_name: mara-ai-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./backend/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - mara-network
+
+  # Бэкенд API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: mara-ai-backend
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASS=postgres
+      - DB_NAME=mara
+      - SECRET_KEY=xQ9#mLp2$Rz4!kFn6&vYw8*Xs5%cVb3@
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - mara-network
+    restart: unless-stopped
+    volumes:
+      - ./backend:/app
+      - ./backend/logs:/app/logs
+
+  # Celery Worker - основной воркер
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.celery
+    container_name: mara-ai-celery-worker
+    command: >
+      celery -A src.core.celery_app worker
+      --loglevel=info
+      --concurrency=4
+      --queues=default,wallet_monitoring,deposit_processing,maintenance
+      --hostname=worker@%h
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASS=postgres
+      - DB_NAME=mara
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./backend:/app
+      - ./backend/logs:/app/logs
+    networks:
+      - mara-network
+
+  # Celery Worker - специализированный для мониторинга кошельков
+  celery-wallet-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.celery
+    container_name: mara-ai-celery-wallet-worker
+    command: >
+      celery -A src.core.celery_app worker
+      --loglevel=info
+      --concurrency=2
+      --queues=wallet_monitoring
+      --hostname=wallet_worker@%h
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASS=postgres
+      - DB_NAME=mara
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./backend:/app
+      - ./backend/logs:/app/logs
+    networks:
+      - mara-network
+
+  # Celery Worker - специализированный для обработки депозитов
+  celery-deposit-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.celery
+    container_name: mara-ai-celery-deposit-worker
+    command: >
+      celery -A src.core.celery_app worker
+      --loglevel=info
+      --concurrency=2
+      --queues=deposit_processing
+      --hostname=deposit_worker@%h
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASS=postgres
+      - DB_NAME=mara
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./backend:/app
+      - ./backend/logs:/app/logs
+    networks:
+      - mara-network
+
+  # Celery Beat - планировщик задач
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.celery
+    container_name: mara-ai-celery-beat
+    command: >
+      celery -A src.core.celery_app beat
+      --loglevel=info
+      --scheduler=celery.beat:PersistentScheduler
+      --pidfile=/tmp/celerybeat.pid
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASS=postgres
+      - DB_NAME=mara
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./backend:/app
+      - ./backend/logs:/app/logs
+      - celery_beat_data:/tmp
+    networks:
+      - mara-network
+
+  # Flower - веб-интерфейс для мониторинга Celery
+  flower:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.flower
+    container_name: mara-ai-flower
+    ports:
+      - "5555:5555"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - FLOWER_PORT=5555
+      - FLOWER_HOST=0.0.0.0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./backend:/app
+    networks:
+      - mara-network
+
+  # Фронтенд
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: mara-ai-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - mara-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  celery_beat_data:
+
+networks:
+  mara-network:
+    driver: bridge
