@@ -41,7 +41,7 @@ const WalletComponent: React.FC = () => {
   };
 
   // Генерация нового кошелька
-  const generateWallet = async (network: string = 'APTOS') => {
+  const generateWallet = async (network: string = 'ARBITRUM') => {
     try {
       setGeneratingWallet(true);
       setError(null);
@@ -109,22 +109,22 @@ const WalletComponent: React.FC = () => {
       }}>
         <h2 style={{ color: '#2d3748', margin: 0 }}>Кошелек</h2>
         <button
-          onClick={() => generateWallet('APTOS')}
-          disabled={generatingWallet || wallets.some(w => w.network === 'APTOS')}
+          onClick={() => generateWallet('ARBITRUM')}
+          disabled={generatingWallet || wallets.some(w => w.network === 'ARBITRUM')}
           style={{
-            background: wallets.some(w => w.network === 'APTOS') ? '#a0aec0' : '#3182ce',
+            background: wallets.some(w => w.network === 'ARBITRUM') ? '#a0aec0' : '#3182ce',
             color: '#fff',
             border: 'none',
             borderRadius: 6,
             padding: '10px 20px',
             fontSize: 14,
             fontWeight: 500,
-            cursor: wallets.some(w => w.network === 'APTOS') ? 'not-allowed' : 'pointer',
+            cursor: wallets.some(w => w.network === 'ARBITRUM') ? 'not-allowed' : 'pointer',
             transition: 'background 0.2s',
-            opacity: wallets.some(w => w.network === 'APTOS') ? 0.6 : 1
+            opacity: wallets.some(w => w.network === 'ARBITRUM') ? 0.6 : 1
           }}
         >
-          {generatingWallet ? 'Генерация...' : 'Создать APTOS кошелек'}
+          {generatingWallet ? 'Генерация...' : 'Создать ARBITRUM кошелек'}
         </button>
       </div>
 
@@ -151,7 +151,7 @@ const WalletComponent: React.FC = () => {
           border: '2px dashed #e2e8f0'
         }}>
           <div style={{ fontSize: 18, marginBottom: 8 }}>Кошельки не найдены</div>
-          <div style={{ fontSize: 14 }}>Создайте кошелек в сети APTOS для начала работы</div>
+          <div style={{ fontSize: 14 }}>Создайте кошелек в сети ARBITRUM для начала работы</div>
         </div>
       ) : (
         <div>
@@ -205,9 +205,22 @@ const WalletComponent: React.FC = () => {
               {balances[wallet.network] ? (
                 <div style={{ 
                   display: 'grid', 
-                  gridTemplateColumns: '1fr 1fr', 
+                  gridTemplateColumns: '1fr 1fr 1fr', 
                   gap: 16 
                 }}>
+                  <div style={{ 
+                    padding: 12, 
+                    background: '#fff', 
+                    borderRadius: 6, 
+                    border: '1px solid #e2e8f0' 
+                  }}>
+                    <div style={{ fontSize: 12, color: '#718096', marginBottom: 4 }}>
+                      ETH Баланс
+                    </div>
+                    <div style={{ fontSize: 18, fontWeight: 600, color: '#2d3748' }}>
+                      {balances[wallet.network].eth_balance.toFixed(6)}
+                    </div>
+                  </div>
                   <div style={{ 
                     padding: 12, 
                     background: '#fff', 

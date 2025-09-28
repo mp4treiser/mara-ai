@@ -67,8 +67,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Получаем профиль пользователя
       await refreshProfile();
     } catch (error) {
-      console.error('Ошибка входа:', error);
-      throw error;
+      console.error('Ошибка входа в AuthContext:', error);
+      // Перебрасываем ошибку с правильным сообщением
+      if (error instanceof Error) {
+        throw error;
+      } else {
+        throw new Error("Ошибка входа в систему");
+      }
     } finally {
       setIsLoading(false);
     }

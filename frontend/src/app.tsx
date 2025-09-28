@@ -2,6 +2,7 @@ import React from "react";
 import { BrowserRouter as Router, Routes, Route, Link, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import BalanceComponent from "./components/BalanceComponent";
 import LoginPage from "./pages/LoginPage";
 import HomePage from "./pages/HomePage";
 import RegisterPage from "./pages/RegisterPage";
@@ -13,7 +14,8 @@ const HeaderButtons = () => {
 
   if (isAuthenticated) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <BalanceComponent compact={true} />
         <Link to="/profile" style={{ textDecoration: 'none' }}>
           <button
             style={{
@@ -26,8 +28,7 @@ const HeaderButtons = () => {
               fontWeight: 500,
               cursor: 'pointer',
               transition: 'background 0.2s',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-              marginRight: 8
+              boxShadow: '0 1px 4px rgba(0,0,0,0.04)'
             }}
           >
             Профиль
@@ -143,11 +144,7 @@ const AppContent = () => {
           <Route path="/" element={<HomePage />} />
           <Route 
             path="/login" 
-            element={
-              <RedirectIfAuthenticated>
-                <LoginPage />
-              </RedirectIfAuthenticated>
-            } 
+            element={<LoginPage />}
           />
           <Route 
             path="/register" 
@@ -173,11 +170,21 @@ const AppContent = () => {
 
 const App = () => {
   return (
-    <AuthProvider>
-      <Router>
-        <AppContent />
-      </Router>
-    </AuthProvider>
+    <>
+      <style>
+        {`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}
+      </style>
+      <AuthProvider>
+        <Router>
+          <AppContent />
+        </Router>
+      </AuthProvider>
+    </>
   );
 };
 

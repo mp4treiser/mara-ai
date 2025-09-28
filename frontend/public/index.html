@@ -3,6 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <title>mara-ai</title>
+    <script>
+      if (typeof process === 'undefined') {
+        window.process = { env: {}, browser: true };
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

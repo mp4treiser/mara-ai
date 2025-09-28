@@ -42,6 +42,26 @@ services:
     networks:
       - mara-network
 
+  # Ollama - локальная модель для RAG агентов
+  ollama:
+    image: ollama/ollama:latest
+    container_name: mara-ai-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    networks:
+      - mara-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
   # Бэкенд API
   backend:
     build:
@@ -54,6 +74,7 @@ services:
       - DB_USER=postgres
       - DB_PASS=postgres
       - DB_NAME=mara
+      - WALLET_ENCRYPTION_KEY=M74r9S6zybTwSO4F5rbnjgSc836bbN57YFi7xqJhy9Q=
       - SECRET_KEY=xQ9#mLp2$Rz4!kFn6&vYw8*Xs5%cVb3@
       - ACCESS_TOKEN_EXPIRE_MINUTES=30
       - REDIS_HOST=redis
@@ -62,6 +83,9 @@ services:
       - REDIS_DB=0
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - OLLAMA_HOST=ollama
+      - OLLAMA_PORT=11434
+      - WALLET_ENCRYPTION_KEY=M74r9S6zybTwSO4F5rbnjgSc836bbN57YFi7xqJhy9Q=
     ports:
       - "8000:8000"
     depends_on:
@@ -69,12 +93,15 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      ollama:
+        condition: service_healthy
     networks:
       - mara-network
     restart: unless-stopped
     volumes:
       - ./backend:/app
       - ./backend/logs:/app/logs
+      - ./docs:/app/docs
 
   # Celery Worker - основной воркер
   celery-worker:
@@ -86,7 +113,7 @@ services:
       celery -A src.core.celery_app worker
       --loglevel=info
       --concurrency=4
-      --queues=default,wallet_monitoring,deposit_processing,maintenance
+      --queues=default,wallet_monitoring,deposit_processing,maintenance,telegram_alerts,telegram_notifications,subscription_management,document_processing,telegram_bots
       --hostname=worker@%h
     environment:
       - REDIS_HOST=redis
@@ -100,6 +127,11 @@ services:
       - DB_USER=postgres
       - DB_PASS=postgres
       - DB_NAME=mara
+      - WALLET_ENCRYPTION_KEY=M74r9S6zybTwSO4F5rbnjgSc836bbN57YFi7xqJhy9Q=
+      - SECRET_KEY=xQ9#mLp2$Rz4!kFn6&vYw8*Xs5%cVb3@
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - OLLAMA_HOST=ollama
+      - OLLAMA_PORT=11434
     depends_on:
       postgres:
         condition: service_healthy
@@ -109,6 +141,7 @@ services:
     volumes:
       - ./backend:/app
       - ./backend/logs:/app/logs
+      - ./docs:/app/docs
     networks:
       - mara-network
 
@@ -122,7 +155,7 @@ services:
       celery -A src.core.celery_app worker
       --loglevel=info
       --concurrency=2
-      --queues=wallet_monitoring
+      --queues=wallet_monitoring,arbitrum_monitoring
       --hostname=wallet_worker@%h
     environment:
       - REDIS_HOST=redis
@@ -136,6 +169,7 @@ services:
       - DB_USER=postgres
       - DB_PASS=postgres
       - DB_NAME=mara
+      - WALLET_ENCRYPTION_KEY=M74r9S6zybTwSO4F5rbnjgSc836bbN57YFi7xqJhy9Q=
     depends_on:
       postgres:
         condition: service_healthy
@@ -158,7 +192,7 @@ services:
       celery -A src.core.celery_app worker
       --loglevel=info
       --concurrency=2
-      --queues=deposit_processing
+      --queues=deposit_processing,arbitrum_processing
       --hostname=deposit_worker@%h
     environment:
       - REDIS_HOST=redis
@@ -172,6 +206,7 @@ services:
       - DB_USER=postgres
       - DB_PASS=postgres
       - DB_NAME=mara
+      - WALLET_ENCRYPTION_KEY=M74r9S6zybTwSO4F5rbnjgSc836bbN57YFi7xqJhy9Q=
     depends_on:
       postgres:
         condition: service_healthy
@@ -207,6 +242,7 @@ services:
       - DB_USER=postgres
       - DB_PASS=postgres
       - DB_NAME=mara
+      - WALLET_ENCRYPTION_KEY=M74r9S6zybTwSO4F5rbnjgSc836bbN57YFi7xqJhy9Q=
     depends_on:
       postgres:
         condition: service_healthy
@@ -248,6 +284,40 @@ services:
     networks:
       - mara-network
 
+  # Aiogram Bot - Telegram бот для мониторинга
+  aiogram-bot:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.aiogram
+    container_name: mara-ai-aiogram-bot
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASS=postgres
+      - DB_NAME=mara
+      - WALLET_ENCRYPTION_KEY=M74r9S6zybTwSO4F5rbnjgSc836bbN57YFi7xqJhy9Q=
+      - SECRET_KEY=xQ9#mLp2$Rz4!kFn6&vYw8*Xs5%cVb3@
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - mara-network
+    restart: unless-stopped
+    volumes:
+      - ./backend/logs:/app/logs
+
   # Фронтенд
   frontend:
     build:
@@ -262,10 +332,78 @@ services:
       - mara-network
     restart: unless-stopped
 
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: postgres-exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://postgres:postgres@postgres:5432/mara?sslmode=disable"
+      PG_EXPORTER_DISABLE_SETTINGS_METRICS: "true"
+      PG_EXPORTER_DISABLE_REPLICATION_METRICS: "true"
+      PG_EXPORTER_DISABLE_DATABASE_METRICS: "true"
+    ports:
+      - "9187:9187"
+    depends_on:
+      - postgres
+    networks:
+      - mara-network
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    ports:
+      - "9080:9080"
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./promtail-config.yaml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+    privileged: true
+    networks:
+      - mara-network
+
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki-config.yaml:/etc/loki/local-config.yaml
+    networks:
+      - mara-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheusdata:/prometheus
+    networks:
+      - mara-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3002:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - grafanadata:/var/lib/grafana
+    networks:
+      - mara-network
+
 volumes:
   postgres_data:
   redis_data:
   celery_beat_data:
+  ollama_data:
+  grafanadata:
+  prometheusdata:
 
 networks:
   mara-network:

@@ -8,7 +8,12 @@ celery_app = Celery(
     broker=settings.redis.url,
     backend=settings.redis.url,
     include=[
-        "src.tasks.wallet_monitor"
+        #"src.tasks.wallet_monitor",
+        "src.tasks.arbitrum_tasks",
+        "src.tasks.telegram_tasks",
+        "src.tasks.subscription_tasks",
+        "src.tasks.document_tasks",
+        "src.tasks.telegram_alert_tasks",
     ]
 )
 
@@ -38,36 +43,71 @@ celery_app.conf.update(
     
     # Настройки beat (планировщик)
     beat_schedule={
-        # Мониторинг кошельков каждые 5 минут
-        "monitor-wallets-every-5-minutes": {
-            "task": "wallet_monitor.monitor_all_wallets",
-            "schedule": crontab(minute="*/5"),
-            "options": {"queue": "wallet_monitoring"}
+        # Мониторинг Arbitrum кошельков каждые 3 минуты
+        "monitor-arbitrum-wallets-every-3-minutes": {
+            "task": "arbitrum_tasks.monitor_arbitrum_wallets",
+            "schedule": crontab(minute="*/3"),
+            "options": {"queue": "arbitrum_monitoring"}
         },
         
-        # Мониторинг кошельков каждые 15 минут (для менее активных)
-        "monitor-wallets-every-15-minutes": {
-            "task": "wallet_monitor.monitor_single_wallet",
-            "schedule": crontab(minute="*/15"),
-            "options": {"queue": "wallet_monitoring"}
+        # Обновление балансов Arbitrum каждые 10 минут
+        "update-arbitrum-balances-every-10-minutes": {
+            "task": "arbitrum_tasks.update_arbitrum_balances",
+            "schedule": crontab(minute="*/10"),
+            "options": {"queue": "arbitrum_monitoring"}
         },
         
-        # Обработка pending депозитов каждые 2 минуты
-        "process-pending-deposits-every-2-minutes": {
-            "task": "wallet_monitor.process_pending_deposits",
+        # Обработка Arbitrum депозитов каждые 2 минуты
+        "process-arbitrum-deposits-every-2-minutes": {
+            "task": "arbitrum_tasks.process_arbitrum_deposits",
             "schedule": crontab(minute="*/2"),
-            "options": {"queue": "deposit_processing"}
+            "options": {"queue": "arbitrum_processing"}
+        },
+        
+        # Деактивация истекших подписок каждый день в 8:00
+        "deactivate-expired-subscriptions-daily": {
+            "task": "subscription_tasks.deactivate_expired_subscriptions",
+            "schedule": crontab(hour=0, minute=10),
+            "options": {"queue": "subscription_management"}
         }
     }
 )
 
 # Настройки очередей
 celery_app.conf.task_routes = {
-    "wallet_monitor.monitor_all_wallets": {"queue": "wallet_monitoring"},
-    "wallet_monitor.monitor_single_wallet": {"queue": "wallet_monitoring"},
-    "wallet_monitor.process_deposit": {"queue": "deposit_processing"},
-    "wallet_monitor.process_pending_deposits": {"queue": "deposit_processing"},
-    "wallet_monitor.*": {"queue": "default"},
+    # Arbitrum задачи
+    "arbitrum_tasks.monitor_arbitrum_wallets": {"queue": "arbitrum_monitoring"},
+    "arbitrum_tasks.update_arbitrum_balances": {"queue": "arbitrum_monitoring"},
+    "arbitrum_tasks.process_arbitrum_deposits": {"queue": "arbitrum_processing"},
+    "arbitrum_tasks.monitor_arbitrum_transactions": {"queue": "arbitrum_monitoring"},
+    "arbitrum_tasks.*": {"queue": "arbitrum_monitoring"},
+    
+    # Старые задачи кошельков (для совместимости)
+    # "wallet_monitor.monitor_all_wallets": {"queue": "wallet_monitoring"},
+    # "wallet_monitor.monitor_single_wallet": {"queue": "wallet_monitoring"},
+    # "wallet_monitor.process_deposit": {"queue": "deposit_processing"},
+    # "wallet_monitor.process_pending_deposits": {"queue": "deposit_processing"},
+    # "wallet_monitor.*": {"queue": "default"},
+    
+    # Telegram задачи
+    "telegram_tasks.send_telegram_notification": {"queue": "telegram_notifications"},
+    "telegram_tasks.send_telegram_test_message": {"queue": "telegram_notifications"},
+    "telegram_tasks.send_subscription_notification": {"queue": "telegram_notifications"},
+    "telegram_tasks.*": {"queue": "default"},
+    
+    # Подписки
+    "subscription_tasks.deactivate_expired_subscriptions": {"queue": "subscription_management"},
+    "subscription_tasks.*": {"queue": "default"},
+    
+    # Документы
+    "document_tasks.process_document_task": {"queue": "default"},
+    "document_tasks.delete_document_from_vector_store_task": {"queue": "default"},
+    "document_tasks.*": {"queue": "default"},
+    
+    # Telegram алерты
+    "telegram_alert_tasks.process_telegram_alert_task": {"queue": "telegram_notifications"},
+    "telegram_alert_tasks.*": {"queue": "telegram_notifications"},
+    
 }
 
 # Настройки приоритетов

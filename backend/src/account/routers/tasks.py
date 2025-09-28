@@ -4,12 +4,10 @@ from typing import List, Dict, Any
 from src.core.orm.database import get_db
 from src.core.auth import get_current_user
 from src.account.models.user import User
-from src.tasks.celery_tasks import (
+from src.tasks.wallet_monitor import (
     trigger_wallet_monitoring,
     trigger_deposit_processing,
-    trigger_specific_wallet_monitoring,
-    monitor_all_wallets,
-    process_pending_deposits
+    trigger_specific_wallet_monitoring
 )
 from src.core.celery_app import celery_app
 

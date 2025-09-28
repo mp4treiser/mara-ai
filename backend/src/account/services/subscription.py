@@ -2,9 +2,12 @@ from fastapi import HTTPException
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
+import logging
 
 from src.account.repositories.subscription import SubscriptionRepository
 from src.account.repositories.user import UserRepository
+
+logger = logging.getLogger(__name__)
 from src.account.schemas import CreateSubscriptionSchema, UpdateSubscriptionSchema
 from src.account.models import User, Plan
 
@@ -109,3 +112,29 @@ class SubscriptionService:
                 detail=f"Subscription with id {subscription_id} not found"
             )
         return details
+
+    async def deactivate_subscription(self, subscription_id: int) -> bool:
+        """Деактивирует подписку"""
+        try:
+            return await self.subscription_repository.deactivate_subscription(subscription_id)
+        except Exception as e:
+            logger.error(f"Ошибка при деактивации подписки {subscription_id}: {e}")
+            return False
+
+    async def extend_subscription(self, subscription_id: int, new_end_date, amount_paid: float) -> bool:
+        """Продлевает подписку"""
+        try:
+            return await self.subscription_repository.extend_subscription(
+                subscription_id, new_end_date, amount_paid
+            )
+        except Exception as e:
+            logger.error(f"Ошибка при продлении подписки {subscription_id}: {e}")
+            return False
+
+    async def get_subscriptions_expiring_on(self, date):
+        """Получает подписки, истекающие в указанную дату"""
+        try:
+            return await self.subscription_repository.get_subscriptions_expiring_on(date)
+        except Exception as e:
+            logger.error(f"Ошибка при получении подписок, истекающих {date}: {e}")
+            return []

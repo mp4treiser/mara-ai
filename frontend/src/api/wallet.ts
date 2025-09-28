@@ -16,6 +16,7 @@ export interface WalletCreate {
 export interface WalletBalanceResponse {
   wallet_address: string;
   network: string;
+  eth_balance: number;
   usdt_balance: number;
   usd_equivalent: number;
   last_updated: string;
