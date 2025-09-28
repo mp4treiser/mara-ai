@@ -35,10 +35,10 @@ export interface SubscriptionResponse {
   id: number;
   user_id: number;
   plan_id: number;
-  plan: PlanSchema;
-  status: string;
   start_date: string;
   end_date: string;
+  is_active: boolean;
+  total_paid: number;
   created_at: string;
   updated_at: string;
 }
@@ -128,8 +128,30 @@ export const planAPI = {
   },
 };
 
-// API функции для подписок (будут добавлены позже)
+// API функции для подписок
 export const subscriptionAPI = {
-  // Здесь будут функции для работы с подписками
-  // Например: создание подписки, получение активных подписок и т.д.
+  // Создание подписки
+  async createSubscription(planId: number): Promise<SubscriptionResponse> {
+    return apiRequest<SubscriptionResponse>('/subscriptions/', {
+      method: 'POST',
+      body: JSON.stringify({ plan_id: planId }),
+    });
+  },
+
+  // Получение всех подписок пользователя
+  async getUserSubscriptions(): Promise<SubscriptionResponse[]> {
+    return apiRequest<SubscriptionResponse[]>('/subscriptions/my');
+  },
+
+  // Получение активных подписок пользователя
+  async getActiveSubscriptions(): Promise<SubscriptionResponse[]> {
+    return apiRequest<SubscriptionResponse[]>('/subscriptions/my/active');
+  },
+
+  // Отмена подписки
+  async cancelSubscription(subscriptionId: number): Promise<void> {
+    return apiRequest<void>(`/subscriptions/${subscriptionId}`, {
+      method: 'DELETE',
+    });
+  },
 };

@@ -1,13 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import WalletComponent from '../components/WalletComponent';
 import SubscriptionComponent from '../components/SubscriptionComponent';
+import AgentsComponent from '../components/AgentsComponent';
+import MetricsComponent from '../components/MetricsComponent';
 
-type TabType = 'profile' | 'wallet' | 'subscription';
+type TabType = 'profile' | 'wallet' | 'subscription' | 'agents' | 'metrics';
 
 const ProfilePage = () => {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('profile');
+
+  // Проверяем права доступа при изменении пользователя
+  useEffect(() => {
+    if (user && activeTab === 'metrics' && !user.is_superuser) {
+      setActiveTab('profile');
+    }
+  }, [user, activeTab]);
 
   if (!user) {
     return (
@@ -23,6 +32,28 @@ const ProfilePage = () => {
         return <WalletComponent />;
       case 'subscription':
         return <SubscriptionComponent />;
+      case 'agents':
+        return <AgentsComponent />;
+      case 'metrics':
+        // Проверяем права администратора
+        if (!user.is_superuser) {
+          return (
+            <div style={{ 
+              width: 600, 
+              background: '#fff', 
+              padding: 32, 
+              borderRadius: 12, 
+              boxShadow: '0 2px 16px rgba(0,0,0,0.07)',
+              textAlign: 'center'
+            }}>
+              <h2 style={{ color: '#e53e3e', marginBottom: 16 }}>🚫 Доступ запрещен</h2>
+              <p style={{ color: '#4a5568', fontSize: 16 }}>
+                Для доступа к метрикам требуются права администратора
+              </p>
+            </div>
+          );
+        }
+        return <MetricsComponent />;
       default:
         return (
           <div style={{ 
@@ -286,6 +317,44 @@ const ProfilePage = () => {
         >
           Подписки
         </button>
+        <button
+          onClick={() => setActiveTab('agents')}
+          style={{
+            background: activeTab === 'agents' ? '#3182ce' : 'transparent',
+            color: activeTab === 'agents' ? '#fff' : '#4a5568',
+            border: 'none',
+            borderRadius: 8,
+            padding: '12px 24px',
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            flex: 1,
+            margin: '0 4px'
+          }}
+        >
+          Агенты
+        </button>
+        {user.is_superuser && (
+          <button
+            onClick={() => setActiveTab('metrics')}
+            style={{
+              background: activeTab === 'metrics' ? '#3182ce' : 'transparent',
+              color: activeTab === 'metrics' ? '#fff' : '#4a5568',
+              border: 'none',
+              borderRadius: 8,
+              padding: '12px 24px',
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              flex: 1,
+              margin: '0 4px'
+            }}
+          >
+            Метрики
+          </button>
+        )}
       </div>
 
       {/* Содержимое активного таба */}

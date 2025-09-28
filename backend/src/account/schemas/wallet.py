@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 
 class WalletBase(BaseModel):
-    network: str = Field(default="APTOS", description="Сеть кошелька")
+    network: str = Field(default="ARBITRUM", description="Сеть кошелька")
 
 
 class WalletCreate(WalletBase):
@@ -42,6 +42,7 @@ class WalletDepositResponse(BaseModel):
 class WalletBalanceResponse(BaseModel):
     wallet_address: str
     network: str
+    eth_balance: float
     usdt_balance: float
     usd_equivalent: float
     last_updated: datetime

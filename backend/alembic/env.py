@@ -27,6 +27,11 @@ if config.config_file_name is not None:
 # target_metadata = mymodel.Base.metadata
 from src.core.orm.base import Base
 from src.account.models import User, Plan, Subscription, Wallet, WalletDeposit
+from src.agents.models.agent import Agent
+from src.agents.models.document import Document
+from src.agents.models.agent_log import AgentLog
+from src.agents.models.telegram_config import TelegramConfig
+from src.agents.models.telegram_monitored_chat import TelegramMonitoredChat
 
 target_metadata = Base.metadata
 

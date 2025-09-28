@@ -17,6 +17,8 @@ export interface UserProfile {
   first_name: string;
   last_name: string;
   is_active: boolean;
+  is_superuser: boolean;
+  balance: number;
 }
 
 export interface RegisterRequest {
@@ -59,7 +61,19 @@ async function apiRequest<T>(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+    
+    // Обрабатываем разные структуры ошибок
+    let errorMessage = `HTTP error! status: ${response.status}`;
+    
+    if (errorData.detail) {
+      if (typeof errorData.detail === 'string') {
+        errorMessage = errorData.detail;
+      } else if (errorData.detail.message) {
+        errorMessage = errorData.detail.message;
+      }
+    }
+    
+    throw new Error(errorMessage);
   }
 
   return response.json();

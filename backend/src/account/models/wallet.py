@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy import String, DateTime, ForeignKey, Numeric, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from src.core.orm.base import Base, str_255, str_255_unique
+from src.core.orm.base import Base
 
 
 class Wallet(Base):

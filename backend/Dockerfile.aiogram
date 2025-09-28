@@ -1,0 +1,35 @@
+FROM python:3.11-slim
+
+# Устанавливаем системные зависимости
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    libpq-dev \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Устанавливаем рабочую директорию
+WORKDIR /app
+
+# Копируем файлы зависимостей
+COPY pyproject.toml poetry.lock ./
+
+# Устанавливаем Poetry
+RUN pip install poetry
+
+# Настраиваем Poetry
+RUN poetry config virtualenvs.create false
+
+# Устанавливаем зависимости
+RUN poetry install --no-root
+
+# Копируем исходный код
+COPY . .
+
+# Создаем пользователя для безопасности
+RUN useradd --create-home --shell /bin/bash aiogram
+RUN chown -R aiogram:aiogram /app
+USER aiogram
+
+# Команда запуска
+CMD ["python", "-m", "src.aiogram_bot.main"]

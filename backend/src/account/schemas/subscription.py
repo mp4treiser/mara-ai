@@ -12,7 +12,7 @@ class BaseSubscriptionSchema(BaseModel):
     is_active: bool
     total_paid: float
     created_at: datetime
-    update_at: datetime
+    updated_at: datetime
 
 
 class CreateSubscriptionSchema(BaseModel):

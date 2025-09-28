@@ -39,6 +39,32 @@ class UserService:
     async def update(self, user_id: int, user_schema: UpdateUserSchema):
         return await self.repository.update(user_id=user_id, user_schema=user_schema)
 
+    async def update_profile(self, user_id: int, profile_data: dict):
+        """Обновляет профиль пользователя"""
+        try:
+            user = await self.repository.get_by_id(user_id)
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"User with id {user_id} not found"
+                )
+            
+            # Обновляем только разрешенные поля
+            for field, value in profile_data.items():
+                if hasattr(user, field):
+                    setattr(user, field, value)
+            
+            await self.session.commit()
+            await self.session.refresh(user)
+            return user
+            
+        except Exception as e:
+            await self.session.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error updating profile: {str(e)}"
+            )
+
     async def delete(self, user_id: int):
         try:
             return await self.repository.delete(user_id=user_id)

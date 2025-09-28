@@ -12,16 +12,13 @@ class SubscriptionRepository:
         self.session = session
 
     async def create(self, user_id: int, subscription_schema: CreateSubscriptionSchema):
-        # Получаем план для расчета дат
         plan = await self.session.get(Plan, subscription_schema.plan_id)
         if not plan:
             raise ValueError(f"Plan with id {subscription_schema.plan_id} not found")
 
-        # Рассчитываем даты подписки
-        start_date = datetime.utcnow()
+        start_date = datetime.now()
         end_date = start_date + timedelta(days=plan.days)
 
-        # Рассчитываем стоимость с учетом скидки
         final_price = plan.price
         if plan.discount_percent:
             final_price = plan.price * (1 - plan.discount_percent / 100)
